@@ -57,7 +57,5 @@ raster_to_table <- function(spc){
 }
 ### Raster to table ---------------------------------------------------------
 dfrm <- map(.x = spcs, .f = raster_to_table)
-dim(dfrm)
-object.size(dfrm)
 
 

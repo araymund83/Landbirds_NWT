@@ -108,46 +108,4 @@ see_changes <- function(spc){
 
 map(.x = spcs, .f = see_changes)
 
-zonal_Changes <- function(spc){   
-  
-  #spc <- spcs[1]
-  cat('-------------------------------------------------------------\n')
-  cat('Making zonal statistics\n', spc, '\n')
-  cat('-------------------------------------------------------------\n')
- 
-  znl <- map(.x = 1:length(rst.avg), .f = function(k){
-    
-    cat('To start\n')
-    cat(k, '\n')
-    znl <- exact_extract(rst.avg[[k]], ecrg, c('mean', 'stdev'))
-    znl <- round(znl, digits = 2)
-    znl <- mutate(znl, mdl = gcm[k], ecoregion = ecrg$REGION_NAM)
-    cat('Done\n')
-    return(znl)
-    
-  })
-  
-  znl <- bind_rows(znl) 
-  znl <- drop_na(znl)
-  
-  cat('To make the graph\n')
-  gbr <- ggplot(data = znl, aes(x = ecoregion, y = mean)) + 
-    geom_errorbar(aes(ymin = mean - stdev, ymax = mean + stdev), width = .2, position = position_dodge(.9)) +
-    geom_bar(position = position_dodge(), stat = 'identity') + 
-    scale_fill_manual(values = c('#00AFAF', '#00B084', '#66A182')) +
-    scale_x_discrete(labels = function(x) str_wrap(x, width = 6)) +
-    facet_wrap(.~mdl, ncol = 1, nrow = 3) +
-    theme_bw() +
-    theme(legend.position = 'bottom', 
-          axis.text.x = element_text(size = 7)) + 
-    labs(x = 'Ecoregion', y = 'Change', fill = 'GCM')
-  
-  ogb <- glue('./graphs/figs/bar_ratio_{spc}.png')
-  ggsave(plot = gbr, filename = ogb, units = 'in', width = 13, height = 6.8, dpi = 300)
-}  
-
-
-# Apply the function ------------------------------------------------------
-
-map(.x = spcs[1:20], .f = zonal_Changes)
 

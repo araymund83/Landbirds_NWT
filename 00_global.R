@@ -4,15 +4,6 @@ library(pacman)
 pacman::p_load(raster, rgdal, rgeos, reproducible, readxl, stringr, sf, 
                tidyverse, foreach, fs, data.table, qs, glue, terra)
 
-# Load functions ----------------------------------------------------------
-source('./R/downloadPredRas.R')
-source('./R/loadBirdPredictions.R')
-source('./R/loadMeanRas.R')
-source('./R/loadOccRas.R')
-
-
-#speciesOfInterest <- c("NOWA", "FOSP", "HOLA", "OSFL", "PISI", "SWSP", "TEWA", "WEWP", 
- #                      "WWCR", "ATSP", "BOCH", "COYE", "CAWA", "REVI", "WCSP")
 
 #complete list of 72 species from google drive
 species <- c("ALFL", "AMCR", "AMRE", "AMRO", "ATSP", "ATTW", "BAWW", "BBWA", 
