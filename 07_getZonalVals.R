@@ -1,3 +1,4 @@
+#This script calulates the mean zonal change in probability of occurrence
 # Load libraries ----------------------------------------------------------
 library(pacman)
 pacman::p_load(glue, raster, rgdal, rgeos, readxl, stringr, sf, R.filesets,
@@ -9,40 +10,22 @@ rm(list = ls())
 
 
 # Load data ---------------------------------------------------------------
-fles <- dir_ls('./qs', regexp = 'table_ratio')
+path <- './qs/occurpi'
+fls <- list.files(path, pattern = '2011-2031', full.names = TRUE)
 
 limt <- sf::st_read('inputs/NT1_BCR6/NT1_BCR6_poly.shp') 
 
-ecrg <- sf::st_read('inputs/ecoregions/EcoRegions_NWT_gov/ecoRegionsNT1_BCR6.shp')
+ecrg <- sf::st_read('inputs/ecoregions/NWT_ecoregions_dissolvec.shp')
 
 targetCRS <- paste("+proj=lcc +lat_1=49 +lat_2=77 +lat_0=0 +lon_0=-95",
                    "+x_0=0 +y_0=0 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
 
-# Extract by mask for the ecoregions ---------------------------------------
-plot(st_geometry(ecrg))
-limt <- sf::st_transform(x = limt, crs = targetCRS)
-ecrg <- sf::st_transform(x = ecrg, crs = targetCRS)
-
-shpf <- as(ecrg, 'Spatial')
-colnames(shpf@data)
-znes <- unique(shpf@data$ECO3_NAM_1)
-znes <- tibble(name = znes, value = 1:length(znes))
-shpf <- st_as_sf(shpf)
-shpf <- inner_join(shpf, znes, by = c('ECO3_NAM_1' = 'name'))
-shpf <- as(shpf, 'Spatial')
-dssl <- aggregate(shpf, 'value')
-plot(dssl)
-dssl <- st_as_sf(dssl)
-dssl <- inner_join(dssl, znes, by = c('value' = 'value'))
-                   
-
-
 # Function ----------------------------------------------------------------
-get_max_min <- function(fle){
+get_mean_zonal <- function(fle){
   
-  #fle <- fles[1]
+  fle <- fls[1]
   cat('Start\n')
-  spc <- str_sub(basename(fle), 1, 4)
+  spc <- str_sub(basename(fle), start = 25, end = -4)
   qst <- qs::qread(fle)
   gcm <- unique(qst$gc)
   
@@ -50,34 +33,37 @@ get_max_min <- function(fle){
     
     cat(gcm[k], '\n')
     tbl <- filter(qst, gc == gcm[k])
-    tbl <- dplyr::select(tbl, lon, lat, logRatio)
+    tbl <- dplyr::select(tbl, lon, lat, change)
     rst <- rasterFromXYZ(tbl)
     # plot(rst) # Run and erase
     crs(rst) <- targetCRS
-    znl.avg <- exactextractr::exact_extract(rst, dssl, 'mean')
-    znl.sdt <- exactextractr::exact_extract(rst, dssl, 'stdev')
-    dfm <- data.frame(region = pull(dssl, 'name'), average = znl.avg, sdt = znl.sdt)
+    znl.avg <- exactextractr::exact_extract(rst, ecrg, 'mean')
+    znl.sdt <- exactextractr::exact_extract(rst, ecrg, 'stdev')
+    dfm <- data.frame(region = ecrg$region, average = znl.avg, sdt = znl.sdt)
     
     dfm <- as_tibble(dfm)
-    dfm <- mutate(dfm, model = gcm[k])
+    dfm <- mutate(dfm, model = gcm[k],
+                  specie = spc)
     cat('Done ', gcm[k], '\n')
     return(dfm)
     
   })
   rsl <- bind_rows(rsl)
-  qs::qsave(x = rsl, file = glue('./qs/zonal/{spc}_logZonal2.qs'))
+  out <- ('./qs/zonalOccPi')
+  ifelse(!dir.exists(out), dir.create(out, recursive = TRUE),'folder already exists')
+  qs::qsave(x = rsl, file = glue('{out}/{spc}_occPiZonal1131.qs'))
   cat('Done!\n')
   return(rsl)
 }
 
 # Apply the function ------------------------------------------------------
 cat('Calculating zonal\n')
-plan(cluster, workers = 3, gc = TRUE)
+future::plan(cluster, workers = 3, gc = TRUE)
 options(future.globals.maxSize= 4194304000) ## this option helps with  the error about global sizes 
-znl_all <- furrr::future_map(.x = 1:length(fles), .f = function(i){
+znl_all <- furrr::future_map(.x = 1:length(fls), .f = function(i){
   cat('Start\n')
-  znl <- get_max_min(fle = fles[i])
+  znl <- get_mean_zonal(fle = fls[i])
   cat('Done!\n')
   return(znl)
 })
-future:::ClusterRegistry('stop')                       
+future:::ClusterRegistry('stop')        
